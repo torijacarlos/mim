@@ -1,5 +1,5 @@
 use chrono::{DateTime, FixedOffset};
-use roxmltree::Document;
+use roxmltree::{Document, Node};
 use scraper::{Html, Selector};
 use std::error::Error;
 
@@ -26,40 +26,28 @@ impl Youtube {
             .filter(|des| des.tag_name().name() == "entry")
             .map(|entry| {
                 let mut descendants = entry.descendants();
-                let id = descendants
-                    .find(|des| des.tag_name().name() == "id")
-                    .unwrap()
-                    .text()
-                    .unwrap()
-                    .to_string();
-                let title = descendants
-                    .find(|des| des.tag_name().name() == "title")
-                    .unwrap()
-                    .text()
-                    .unwrap()
-                    .to_string();
-                let link = descendants
-                    .find(|des| des.tag_name().name() == "link")
-                    .unwrap()
-                    .attribute("href")
-                    .unwrap()
-                    .to_string();
-                let published = descendants
-                    .find(|des| des.tag_name().name() == "published")
-                    .unwrap()
-                    .text()
-                    .unwrap()
-                    .to_string();
+                let id = NodeManipulation::get_text_from_node(
+                    descendants.find(|des| des.tag_name().name() == "id"),
+                );
+                let title = NodeManipulation::get_text_from_node(
+                    descendants.find(|des| des.tag_name().name() == "title"),
+                );
+                let link = NodeManipulation::get_attr_from_node(
+                    descendants.find(|des| des.tag_name().name() == "link"),
+                    "href".to_string(),
+                );
+                let published = NodeManipulation::get_text_from_node(
+                    descendants.find(|des| des.tag_name().name() == "published"),
+                );
                 let media = descendants
                     .find(|des| des.tag_name().name() == "group")
                     .unwrap();
-                let thumbnail = media
-                    .descendants()
-                    .find(|des| des.tag_name().name() == "thumbnail")
-                    .unwrap()
-                    .attribute("url")
-                    .unwrap()
-                    .to_string();
+                let thumbnail = NodeManipulation::get_attr_from_node(
+                    media
+                        .descendants()
+                        .find(|des| des.tag_name().name() == "thumbnail"),
+                    "url".to_string(),
+                );
                 let published = DateTime::parse_from_rfc3339(&published).ok();
                 FeedEntry {
                     source: EntrySource::Youtube,
@@ -72,6 +60,30 @@ impl Youtube {
             })
             .collect();
         Ok(entries)
+    }
+}
+
+struct NodeManipulation;
+
+impl NodeManipulation {
+    #[inline]
+    fn get_text_from_node(node: Option<Node>) -> String {
+        if let Some(n) = node {
+            if let Some(t) = n.text() {
+                return t.to_string();
+            }
+        }
+        String::new()
+    }
+
+    #[inline]
+    fn get_attr_from_node(node: Option<Node>, attr: String) -> String {
+        if let Some(n) = node {
+            if let Some(a) = n.attribute(&attr[..]) {
+                return a.to_string();
+            }
+        }
+        String::new()
     }
 }
 
