@@ -1,109 +1,19 @@
+mod youtube;
+mod xml;
+
 use chrono::{DateTime, FixedOffset};
-use roxmltree::{Document, Node};
-use scraper::{Html, Selector};
 use serde::{Deserialize, Serialize};
 use std::{error::Error, path::PathBuf};
 
+use youtube::Youtube; 
+
 type MimResult<T> = Result<T, Box<dyn Error>>;
 
-struct Youtube;
-
-impl Youtube {
-    async fn get_rss_url(handler: String) -> MimResult<String> {
-        let yt_channel = reqwest::get(format!("https://www.youtube.com/{handler}"))
-            .await?
-            .text()
-            .await?;
-        let html = Html::parse_document(&yt_channel);
-        let selector = Selector::parse("link[title=RSS]")?;
-        let element = html.select(&selector).next().unwrap();
-
-        Ok(element.value().attr("href").unwrap().to_string())
-    }
-
-    async fn get_rss_entries(rss_url: String) -> MimResult<Vec<FeedEntry>> {
-        let content = reqwest::get(&rss_url).await?.text().await?;
-        let rss = Document::parse(&content)?;
-        let entries = rss
-            .descendants()
-            .filter(|des| des.tag_name().name() == "entry")
-            .map(|entry| {
-                let mut descendants = entry.descendants();
-                let id = NodeManipulation::get_text_from_node(
-                    descendants.find(|des| des.tag_name().name() == "id"),
-                );
-                let title = NodeManipulation::get_text_from_node(
-                    descendants.find(|des| des.tag_name().name() == "title"),
-                );
-                let link = NodeManipulation::get_attr_from_node(
-                    descendants.find(|des| des.tag_name().name() == "link"),
-                    "href".to_string(),
-                );
-                let published = NodeManipulation::get_text_from_node(
-                    descendants.find(|des| des.tag_name().name() == "published"),
-                );
-                let media = descendants
-                    .find(|des| des.tag_name().name() == "group")
-                    .unwrap();
-                let thumbnail = NodeManipulation::get_attr_from_node(
-                    media
-                        .descendants()
-                        .find(|des| des.tag_name().name() == "thumbnail"),
-                    "url".to_string(),
-                );
-                let published = DateTime::parse_from_rfc3339(&published).ok();
-                FeedEntry {
-                    source: EntrySource::Youtube,
-                    id,
-                    title,
-                    link,
-                    published,
-                    thumbnail: Some(thumbnail),
-                }
-            })
-            .collect();
-        Ok(entries)
-    }
-}
-
-struct NodeManipulation;
-
-impl NodeManipulation {
-    #[inline]
-    fn get_text_from_node(node: Option<Node>) -> String {
-        if let Some(n) = node {
-            if let Some(t) = n.text() {
-                return t.to_string();
-            }
-        }
-        String::new()
-    }
-
-    #[inline]
-    fn get_attr_from_node(node: Option<Node>, attr: String) -> String {
-        if let Some(n) = node {
-            if let Some(a) = n.attribute(&attr[..]) {
-                return a.to_string();
-            }
-        }
-        String::new()
-    }
-}
 
 #[derive(Debug, Serialize, Deserialize, Default)]
-enum EntrySource {
+enum FeedSource {
     #[default]
     Youtube,
-}
-
-#[derive(Debug)]
-struct FeedEntry {
-    source: EntrySource,
-    id: String,
-    title: String,
-    link: String,
-    published: Option<DateTime<FixedOffset>>,
-    thumbnail: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Default)]
@@ -119,8 +29,18 @@ struct MimCategory {
 
 #[derive(Serialize, Deserialize, Default)]
 struct MimSource {
-    source: EntrySource,
+    source: FeedSource,
     value: String,
+}
+
+#[derive(Debug)]
+pub struct FeedEntry {
+    source: FeedSource,
+    id: String,
+    title: String,
+    link: String,
+    published: Option<DateTime<FixedOffset>>,
+    thumbnail: Option<String>,
 }
 
 impl Mim {
@@ -158,7 +78,7 @@ async fn main() -> MimResult<()> {
         let mut cat_sources = cat.sources.iter();
         while let Some(source) = cat_sources.next() {
             match source.source {
-                EntrySource::Youtube => {
+                FeedSource::Youtube => {
                     let rss_url = Youtube::get_rss_url(source.value.clone()).await?;
                     let entries = Youtube::get_rss_entries(rss_url).await?;
                     for entry in entries {
