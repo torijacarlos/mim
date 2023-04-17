@@ -1,8 +1,8 @@
-use scraper::{Html, Selector};
+use crate::xml::NodeManipulation;
+use crate::{FeedEntry, FeedSource, MimResult};
 use chrono::DateTime;
 use roxmltree::Document;
-use crate::xml::NodeManipulation;
-use crate::{ MimResult, FeedEntry, FeedSource };
+use scraper::{Html, Selector};
 
 pub struct Youtube;
 
@@ -63,4 +63,3 @@ impl Youtube {
         Ok(entries)
     }
 }
-

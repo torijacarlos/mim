@@ -1,14 +1,13 @@
-mod youtube;
 mod xml;
+mod youtube;
 
 use chrono::{DateTime, FixedOffset};
 use serde::{Deserialize, Serialize};
 use std::{error::Error, path::PathBuf};
 
-use youtube::Youtube; 
+use youtube::Youtube;
 
 type MimResult<T> = Result<T, Box<dyn Error>>;
-
 
 #[derive(Debug, Serialize, Deserialize, Default)]
 enum FeedSource {
@@ -49,7 +48,7 @@ impl Mim {
         if let Some(home_dir) = dirs::home_dir() {
             if let Some(h) = home_dir.to_str() {
                 let config_file = PathBuf::from(format!("{}/.mim", h));
-                if let Ok(config) = std::fs::read(&config_file) {
+                if let Ok(config) = std::fs::read(config_file) {
                     let config = String::from_utf8(config)?;
                     let config: Mim = ron::from_str(&config[..])?;
                     return Ok(config);
@@ -73,15 +72,15 @@ impl Mim {
 #[tokio::main]
 async fn main() -> MimResult<()> {
     let mim = Mim::load()?;
-    let mut mim_cats = mim.categories.iter();
-    while let Some(cat) = mim_cats.next() {
+    let mim_cats = mim.categories.iter();
+    for cat in mim_cats {
         println!("{}", cat.name);
-        let mut cat_sources = cat.sources.iter();
-        while let Some(source) = cat_sources.next() {
+        let cat_sources = cat.sources.iter();
+        for source in cat_sources {
             match source.source {
                 FeedSource::RSS => {
                     todo!("Standard RSS feed not implemented")
-                },
+                }
                 FeedSource::Youtube => {
                     let rss_url = Youtube::get_rss_url(source.value.clone()).await?;
                     let entries = Youtube::get_rss_entries(rss_url).await?;
