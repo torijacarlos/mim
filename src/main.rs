@@ -1,12 +1,15 @@
 use chrono::{DateTime, FixedOffset};
 use roxmltree::{Document, Node};
 use scraper::{Html, Selector};
-use std::error::Error;
+use serde::{Deserialize, Serialize};
+use std::{error::Error, path::PathBuf};
+
+type MimResult<T> = Result<T, Box<dyn Error>>;
 
 struct Youtube;
 
 impl Youtube {
-    async fn get_rss_url(handler: String) -> Result<String, Box<dyn Error>> {
+    async fn get_rss_url(handler: String) -> MimResult<String> {
         let yt_channel = reqwest::get(format!("https://www.youtube.com/{handler}"))
             .await?
             .text()
@@ -18,7 +21,7 @@ impl Youtube {
         Ok(element.value().attr("href").unwrap().to_string())
     }
 
-    async fn get_rss_entries(rss_url: String) -> Result<Vec<FeedEntry>, Box<dyn Error>> {
+    async fn get_rss_entries(rss_url: String) -> MimResult<Vec<FeedEntry>> {
         let content = reqwest::get(&rss_url).await?.text().await?;
         let rss = Document::parse(&content)?;
         let entries = rss
@@ -87,8 +90,9 @@ impl NodeManipulation {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 enum EntrySource {
+    #[default]
     Youtube,
 }
 
@@ -102,15 +106,75 @@ struct FeedEntry {
     thumbnail: Option<String>,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    let rss_url = Youtube::get_rss_url("@ConnorDawg".to_string()).await?;
-    let entries = Youtube::get_rss_entries(rss_url).await?;
-    for entry in entries {
-        println!(
-            "{:?} | {:?} | {:?} | {:?} | {:?} | {:?}",
-            entry.source, entry.id, entry.title, entry.published, entry.link, entry.thumbnail
-        );
+#[derive(Serialize, Deserialize, Default)]
+struct Mim {
+    categories: Vec<MimCategory>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct MimCategory {
+    name: String,
+    sources: Vec<MimSource>,
+}
+
+#[derive(Serialize, Deserialize, Default)]
+struct MimSource {
+    source: EntrySource,
+    value: String,
+}
+
+impl Mim {
+    fn load() -> MimResult<Self> {
+        if let Some(home_dir) = dirs::home_dir() {
+            if let Some(h) = home_dir.to_str() {
+                let config_file = PathBuf::from(format!("{}/.mim", h));
+                if let Ok(config) = std::fs::read(&config_file) {
+                    let config = String::from_utf8(config)?;
+                    let config: Mim = ron::from_str(&config[..])?;
+                    return Ok(config);
+                }
+            }
+        }
+        Ok(Mim::default())
     }
-    Ok(())
+
+    fn save(&self) -> MimResult<()> {
+        if let Some(home_dir) = dirs::home_dir() {
+            if let Some(h) = home_dir.to_str() {
+                let config_file = PathBuf::from(format!("{}/.mim", h));
+                std::fs::write(config_file, ron::to_string(&self)?);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[tokio::main]
+async fn main() -> MimResult<()> {
+    let mim = Mim::load()?;
+    let mut mim_cats = mim.categories.iter();
+    while let Some(cat) = mim_cats.next() {
+        println!("{}", cat.name);
+        let mut cat_sources = cat.sources.iter();
+        while let Some(source) = cat_sources.next() {
+            match source.source {
+                EntrySource::Youtube => {
+                    let rss_url = Youtube::get_rss_url(source.value.clone()).await?;
+                    let entries = Youtube::get_rss_entries(rss_url).await?;
+                    for entry in entries {
+                        println!(
+                            "{:?} | {:?} | {:?} | {:?} | {:?} | {:?}",
+                            entry.source,
+                            entry.id,
+                            entry.title,
+                            entry.published,
+                            entry.link,
+                            entry.thumbnail
+                        );
+                    }
+                }
+            }
+        }
+    }
+    mim.save()
 }
