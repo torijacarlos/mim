@@ -13,6 +13,7 @@ type MimResult<T> = Result<T, Box<dyn Error>>;
 #[derive(Debug, Serialize, Deserialize, Default)]
 enum FeedSource {
     #[default]
+    RSS,
     Youtube,
 }
 
@@ -62,7 +63,7 @@ impl Mim {
         if let Some(home_dir) = dirs::home_dir() {
             if let Some(h) = home_dir.to_str() {
                 let config_file = PathBuf::from(format!("{}/.mim", h));
-                std::fs::write(config_file, ron::to_string(&self)?);
+                std::fs::write(config_file, ron::to_string(&self)?)?;
             }
         }
         Ok(())
@@ -78,6 +79,9 @@ async fn main() -> MimResult<()> {
         let mut cat_sources = cat.sources.iter();
         while let Some(source) = cat_sources.next() {
             match source.source {
+                FeedSource::RSS => {
+                    todo!("Standard RSS feed not implemented")
+                },
                 FeedSource::Youtube => {
                     let rss_url = Youtube::get_rss_url(source.value.clone()).await?;
                     let entries = Youtube::get_rss_entries(rss_url).await?;
