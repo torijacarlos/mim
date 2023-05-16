@@ -1,3 +1,5 @@
+// todo: use ratatui
+
 #[tokio::main]
 async fn main() -> mim::MimResult<()> {
     let mim = mim::Mim::load()?;
