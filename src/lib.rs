@@ -1,6 +1,6 @@
 mod feed;
 
-use feed::Feed;
+pub use feed::*;
 use serde::{Deserialize, Serialize};
 use std::{error::Error, path::PathBuf};
 
