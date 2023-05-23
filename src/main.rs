@@ -25,15 +25,49 @@ impl From<String> for Command {
 }
 
 enum StdoutColor {
-    Yellow,
+    ForegroundBlack,
+    ForegroundRed,
+    ForegroundGreen,
+    ForegroundYellow,
+    ForegroundBlue,
+    ForegroundMagenta,
+    ForegroundCyan,
+    ForegroundWhite,
+    ForegroundColor256(u8),
+    BackgroundBlack,
+    BackgroundRed,
+    BackgroundGreen,
+    BackgroundYellow,
+    BackgroundBlue,
+    BackgroundMagenta,
+    BackgroundCyan,
+    BackgroundWhite,
+    BackgroundColor256(u8),
     Reset,
 }
 
 impl fmt::Display for StdoutColor {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result {
         let value = match self {
-            Self::Yellow => "33",
-            Self::Reset => "0",
+            Self::ForegroundBlack => "30".to_string(),
+            Self::ForegroundRed => "31".to_string(),
+            Self::ForegroundGreen => "32".to_string(),
+            Self::ForegroundYellow => "33".to_string(),
+            Self::ForegroundBlue => "34".to_string(),
+            Self::ForegroundMagenta => "35".to_string(),
+            Self::ForegroundCyan => "36".to_string(),
+            Self::ForegroundWhite => "37".to_string(),
+            Self::ForegroundColor256(value) => format!("38;5;{}", value),
+            Self::BackgroundBlack => "40".to_string(),
+            Self::BackgroundRed => "41".to_string(),
+            Self::BackgroundGreen => "42".to_string(),
+            Self::BackgroundYellow => "43".to_string(),
+            Self::BackgroundBlue => "44".to_string(),
+            Self::BackgroundMagenta => "45".to_string(),
+            Self::BackgroundCyan => "46".to_string(),
+            Self::BackgroundWhite => "47".to_string(),
+            Self::BackgroundColor256(value) => format!("48;5;{}", value),
+            Self::Reset => "0".to_string(),
         };
         write!(f, "\x1B[{}m", value)
     }
@@ -98,7 +132,7 @@ async fn main() -> mim::MimResult<()> {
     if args.len() == 0 {
         println!(
             "{}No command provided. {}Options available are: list, add-feed",
-            StdoutColor::Yellow,
+            StdoutColor::ForegroundYellow,
             StdoutColor::Reset
         );
         exit(1);
@@ -130,7 +164,7 @@ async fn main() -> mim::MimResult<()> {
             } else {
                 println!(
                     "{}Invalid options for adding a feed. {}Options available are: --source, --category",
-                    StdoutColor::Yellow,
+                    StdoutColor::ForegroundYellow,
                     StdoutColor::Reset
                 );
             }
