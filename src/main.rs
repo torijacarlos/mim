@@ -103,9 +103,9 @@ impl From<String> for ArgOption {
 fn parse_options(args: &mut Vec<String>) -> mim::MimResult<Vec<(ArgOption, String)>> {
     let mut values = vec![];
     args.reverse();
-    while args.len() > 0 {
+    while !args.is_empty() {
         match args.pop() {
-            Some(value) if value.contains(&"--") => {
+            Some(value) if value.contains("--") => {
                 let option = value[2..].to_string();
                 if let Some(value) = args.pop() {
                     let option: ArgOption = option.into();
@@ -129,7 +129,7 @@ async fn main() -> mim::MimResult<()> {
     let mut args: Vec<String> = env::args().collect();
     let _: Vec<String> = args.drain(..1).collect();
 
-    if args.len() == 0 {
+    if args.is_empty() {
         println!(
             "{}No command provided. {}Options available are: list, add-feed",
             StdoutColor::ForegroundYellow,
@@ -158,7 +158,7 @@ async fn main() -> mim::MimResult<()> {
                         ArgOption::Identifier => feed.id = value,
                     }
                 }
-                if feed.id == "" {
+                if feed.id.is_empty() {
                     mim.feeds.push(feed);
                 }
             } else {

@@ -32,7 +32,6 @@ impl From<String> for Source {
     }
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub enum Category {
     #[default]
@@ -80,7 +79,6 @@ pub struct Entry {
 }
 
 impl Feed {
-
     async fn get_url(&self) -> Option<String> {
         if let Some(url) = &self.url {
             return Some(url.to_string());
