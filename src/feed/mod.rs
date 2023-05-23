@@ -22,8 +22,20 @@ impl fmt::Display for Source {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+impl From<String> for Source {
+    fn from(value: String) -> Self {
+        match &value[..] {
+            "rss" => Self::RSS,
+            "youtube" => Self::Youtube,
+            _ => unimplemented!("Invalid command"),
+        }
+    }
+}
+
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub enum Category {
+    #[default]
     Entertainment,
     Music,
     Technology,
@@ -40,30 +52,42 @@ impl fmt::Display for Category {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+impl From<String> for Category {
+    fn from(value: String) -> Self {
+        match &value[..] {
+            "entertainment" => Self::Entertainment,
+            "music" => Self::Music,
+            "technology" => Self::Technology,
+            _ => unimplemented!("Invalid command"),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Default)]
 pub struct Feed {
+    pub id: String,
     pub source: Source,
     pub category: Category,
     pub url: Option<String>,
-    pub value: String,
 }
 
 #[derive(Default, Debug)]
 pub struct Entry {
-    id: String,
-    title: String,
-    link: String,
-    published: Option<DateTime<FixedOffset>>,
+    pub id: String,
+    pub title: String,
+    pub link: String,
+    pub published: Option<DateTime<FixedOffset>>,
 }
 
 impl Feed {
+
     async fn get_url(&self) -> Option<String> {
         if let Some(url) = &self.url {
             return Some(url.to_string());
         }
         match self.source {
             Source::Youtube => {
-                let channel_url = format!("https://www.youtube.com/{}", self.value);
+                let channel_url = format!("https://www.youtube.com/{}", self.id);
                 if let Ok(yt_channel) = reqwest::get(channel_url).await {
                     if let Ok(yt_channel) = yt_channel.text().await {
                         let html = Html::parse_document(&yt_channel);
